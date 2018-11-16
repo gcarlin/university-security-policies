@@ -1,0 +1,14 @@
+Manifest-Version: 1.0
+Built-By: gregorycarlin
+Build-Jdk: 1.8.0_112
+Bundle-ManifestVersion: 2
+Bundle-Version: 1.0.0
+Created-By: Maven Integration for Eclipse
+Bundle-ActivationPolicy: lazy
+Bundle-ClassPath: .
+Bundle-Vendor: org.nuxeo.customsecuritypolicy
+Bundle-Name: university-security-policies-core
+Bundle-SymbolicName: org.nuxeo.customsecuritypolicy.university-securit
+ y-policies-core;singleton=true
+Nuxeo-Component: OSGI-INF/abacsecuritypolicy-contrib.xml
+

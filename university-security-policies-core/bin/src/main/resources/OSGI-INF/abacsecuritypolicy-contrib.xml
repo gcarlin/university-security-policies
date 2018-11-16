@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<component name="org.nuxeo.customsecuritypolicy.abacsecuritypolicy">
+
+  <extension target="org.nuxeo.ecm.core.security.SecurityService" point="policies">
+    <!-- 
+    You might find some help here:
+    https://explorer.nuxeo.com/nuxeo/site/distribution/latest/viewExtensionPoint/org.nuxeo.ecm.core.security.SecurityService%2d%2dpolicies
+    -->
+  </extension>
+
+</component>
