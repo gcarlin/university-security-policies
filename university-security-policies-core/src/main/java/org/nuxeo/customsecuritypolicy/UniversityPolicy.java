@@ -58,11 +58,12 @@ public class UniversityPolicy extends AbstractSecurityPolicy implements Security
      */
     public static class IsConfidentialTransformer implements SQLQuery.Transformer {
 
+        //where ("ecm:primaryType" = "Invoice" AND "university:confidential"=0 AND xxx ) OR ( ecm:primaryType <> "Invoice" AND xxx )
         /**
          * {@code university:confidential = true}
          */
-        public static final Predicate IS_CONFIDENTIAL = new Predicate(new Reference("university:confidential"),
-                Operator.EQ, new IntegerLiteral(1L));
+        public static final Predicate IS_NOT_CONFIDENTIAL = new Predicate(new Reference("university:confidential"),
+                Operator.EQ, new IntegerLiteral(0L));
         /**
          * {@code ecm:primaryType = 'Invoice'}
          */
@@ -75,7 +76,7 @@ public class UniversityPolicy extends AbstractSecurityPolicy implements Security
         public static final Predicate IS_NOT_INVOICE = new Predicate(new Reference(NXQL.ECM_PRIMARYTYPE),
                 Operator.NOTEQ, new StringLiteral("Invoice"));
 
-        public static final Predicate INVOICE_AND_CONFIDENTIAL = new Predicate(IS_CONFIDENTIAL, Operator.AND, IS_INVOICE);
+        public static final Predicate INVOICE_AND_NOT_CONFIDENTIAL = new Predicate(IS_NOT_CONFIDENTIAL, Operator.AND, IS_INVOICE);
 
         @Override
         public SQLQuery transform(Principal principal, SQLQuery query) {
@@ -87,11 +88,11 @@ public class UniversityPolicy extends AbstractSecurityPolicy implements Security
             Predicate predicate2;
             if (!nxPrinc.isMemberOf("university")) {
                 if (where == null || where.predicate == null) {
-                    predicate1 = INVOICE_AND_CONFIDENTIAL;
+                    predicate1 = INVOICE_AND_NOT_CONFIDENTIAL;
                     predicate2 = IS_NOT_INVOICE;
                 } else {
                     // adds an ecm:primaryType = 'Invoice' AND university:confidential = true to the WHERE clause
-                    predicate1 = new Predicate(INVOICE_AND_CONFIDENTIAL, Operator.AND, where.predicate);
+                    predicate1 = new Predicate(INVOICE_AND_NOT_CONFIDENTIAL, Operator.AND, where.predicate);
                     predicate2 = new Predicate(IS_NOT_INVOICE, Operator.AND, where.predicate);
 
                 }
