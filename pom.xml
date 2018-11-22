@@ -9,7 +9,7 @@
 
   <groupId>org.nuxeo.customsecuritypolicy</groupId>
   <artifactId>university-security-policies-parent</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.4-SNAPSHOT</version>
   <name>University security policies parent</name>
   <description>University</description>
   <packaging>pom</packaging>
@@ -78,6 +78,11 @@
         <groupId>org.nuxeo.customsecuritypolicy</groupId>
         <artifactId>university-security-policies-package</artifactId>
         <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>nuxeo-studio</groupId>
+        <artifactId>gcarlin-SANDBOX</artifactId>
+        <version>jsabos_c8cd33--university-security-policies-SNAPSHOT</version>
       </dependency>
     </dependencies>
   </dependencyManagement>

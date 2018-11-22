@@ -4,7 +4,6 @@ import org.nuxeo.ecm.core.api.NuxeoPrincipal;
 import org.nuxeo.ecm.core.api.security.ACP;
 import org.nuxeo.ecm.core.api.security.Access;
 import org.nuxeo.ecm.core.model.Document;
-import org.nuxeo.ecm.core.query.sql.NXQL;
 import org.nuxeo.ecm.core.query.sql.model.*;
 import org.nuxeo.ecm.core.query.sql.model.SQLQuery.Transformer;
 import org.nuxeo.ecm.core.security.AbstractSecurityPolicy;
@@ -18,16 +17,24 @@ import java.util.Optional;
  */
 public class UniversityPolicy extends AbstractSecurityPolicy implements SecurityPolicy {
 
+    private static final String UNIVERSITY = "university";
+    private static final String UNIVERSITY_CONFIDENTIAL = UNIVERSITY + ":confidential";
+
+    private static final Transformer IS_CONFIDENTIAL_TRANSFORMER = new IsConfidentialTransformer();
+
     @Override
     public Access checkPermission(Document doc, ACP mergedAcp, Principal principal, String permission,
                                   String[] resolvedPermissions, String[] additionalPrincipals) {
         NuxeoPrincipal nxPrinc = (NuxeoPrincipal) principal;
 
+        // Whenever this is an Invoice
         if ("Invoice".equals(doc.getType().getName())) {
-            Boolean isConfidential = Optional.ofNullable((Boolean) doc.getValue("university:confidential"))
+            // Check the value of confidential, false or null are considered the same
+            Boolean isConfidential = Optional.ofNullable((Boolean) doc.getValue(UNIVERSITY_CONFIDENTIAL))
                     .orElse(Boolean.FALSE);
 
-            if (isConfidential && !nxPrinc.isMemberOf("university")) {
+            // If you are not part of the group university we check the confidential value.
+            if (isConfidential && !nxPrinc.isMemberOf(UNIVERSITY)) {
                 return Access.DENY;
             }
         }
@@ -36,7 +43,6 @@ public class UniversityPolicy extends AbstractSecurityPolicy implements Security
 
     @Override
     public boolean isRestrictingPermission(String permission) {
-        // could only restrict Browse permission, or others
         return true;
     }
 
@@ -50,59 +56,50 @@ public class UniversityPolicy extends AbstractSecurityPolicy implements Security
         return IS_CONFIDENTIAL_TRANSFORMER;
     }
 
-    public static final Transformer IS_CONFIDENTIAL_TRANSFORMER = new IsConfidentialTransformer();
-
     /**
-     * Sample Transformer that adds {@code (ecm:primaryType = 'Invoice' AND university:confidential = true) OR ...} to
+     * Sample Transformer that adds {@code (university:confidential IS NULL OR university:confidential = 0) AND ...} to
      * the query.
      */
     public static class IsConfidentialTransformer implements SQLQuery.Transformer {
 
-        //where ("ecm:primaryType" = "Invoice" AND "university:confidential"=0 AND xxx ) OR ( ecm:primaryType <> "Invoice" AND xxx )
         /**
-         * {@code university:confidential = true}
+         * {@code university:confidential = 0}
          */
-        public static final Predicate IS_NOT_CONFIDENTIAL = new Predicate(new Reference("university:confidential"),
-                Operator.EQ, new IntegerLiteral(0L));
-        /**
-         * {@code ecm:primaryType = 'Invoice'}
-         */
-        public static final Predicate IS_INVOICE = new Predicate(new Reference(NXQL.ECM_PRIMARYTYPE),
-                Operator.EQ, new StringLiteral("Invoice"));
+        private static final Predicate IS_NOT_CONFIDENTIAL = new Predicate(new Reference(UNIVERSITY_CONFIDENTIAL),
+                Operator.EQ, new IntegerLiteral(0l));
 
         /**
-         * {@code ecm:primaryType <> 'Invoice'}
+         * {@code university:confidential IS NULL}
          */
-        public static final Predicate IS_NOT_INVOICE = new Predicate(new Reference(NXQL.ECM_PRIMARYTYPE),
-                Operator.NOTEQ, new StringLiteral("Invoice"));
+        private static final Predicate IS_NOT_CONFIDENTIAL_NULL = new Predicate(new Reference(UNIVERSITY_CONFIDENTIAL),
+                Operator.ISNULL, null);
 
-        public static final Predicate INVOICE_AND_NOT_CONFIDENTIAL = new Predicate(IS_NOT_CONFIDENTIAL, Operator.AND, IS_INVOICE);
+        /**
+         * There's no default value on the confidential property so we have to check the null value.
+         * {@code university:confidential IS NULL OR university:confidential = 0}
+         */
+        private static final Predicate INVOICE_AND_NOT_CONFIDENTIAL = new Predicate(IS_NOT_CONFIDENTIAL_NULL, Operator.OR, IS_NOT_CONFIDENTIAL);
 
         @Override
         public SQLQuery transform(Principal principal, SQLQuery query) {
             NuxeoPrincipal nxPrinc = (NuxeoPrincipal) principal;
 
             WhereClause where = query.where;
-            Predicate predicate;
-            Predicate predicate1;
-            Predicate predicate2;
-            if (!nxPrinc.isMemberOf("university")) {
+            Expression predicate;
+            if (!nxPrinc.isMemberOf(UNIVERSITY) && !nxPrinc.isAdministrator()) {
                 if (where == null || where.predicate == null) {
-                    predicate1 = INVOICE_AND_NOT_CONFIDENTIAL;
-                    predicate2 = IS_NOT_INVOICE;
-                } else {
-                    // adds an ecm:primaryType = 'Invoice' AND university:confidential = true to the WHERE clause
-                    predicate1 = new Predicate(INVOICE_AND_NOT_CONFIDENTIAL, Operator.AND, where.predicate);
-                    predicate2 = new Predicate(IS_NOT_INVOICE, Operator.AND, where.predicate);
+                    predicate = IS_NOT_CONFIDENTIAL;
 
+                } else {
+                    // Parenthesis are applied from the left to the right we will have something like:
+                    // SELECT * FROM Document WHERE (((university:confidential IS NULL) OR (university:confidential = 0)) AND ... )
+                    predicate = new Expression(INVOICE_AND_NOT_CONFIDENTIAL, Operator.AND, where.predicate);
                 }
-                predicate = new Predicate(predicate1, Operator.OR, predicate2);
                 // return query with updated WHERE clause
                 return new SQLQuery(query.select, query.from, new WhereClause(predicate), query.groupBy, query.having,
                         query.orderBy, query.limit, query.offset);
             }
             return query;
-
         }
     }
 }
